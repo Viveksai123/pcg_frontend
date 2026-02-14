@@ -1,5 +1,5 @@
-import { API_BASE_URL, ML_API_URL } from './config';
-import { ApiResponse } from './types';
+import { API_BASE_URL, ML_API_URL } from "./config";
+import { ApiResponse } from "./types";
 
 export class ApiClient {
   private baseUrl: string;
@@ -8,15 +8,15 @@ export class ApiClient {
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
     // Get token from localStorage on client side
-    if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('authToken');
+    if (typeof window !== "undefined") {
+      this.token = localStorage.getItem("authToken");
     }
   }
 
   setToken(token: string) {
     this.token = token;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('authToken', token);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("authToken", token);
     }
   }
 
@@ -26,18 +26,18 @@ export class ApiClient {
 
   clearToken() {
     this.token = null;
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('authToken');
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("authToken");
     }
   }
 
   private getHeaders(): HeadersInit {
     const headers: HeadersInit = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     };
 
     if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+      headers["Authorization"] = `Bearer ${this.token}`;
     }
 
     return headers;
@@ -46,16 +46,40 @@ export class ApiClient {
   async get<T>(endpoint: string): Promise<ApiResponse<T>> {
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
-        method: 'GET',
+        method: "GET",
         headers: this.getHeaders(),
       });
 
-      return await response.json();
+      // Check if response is OK before parsing JSON
+      if (!response.ok) {
+        const contentType = response.headers.get("content-type");
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+
+        // Try to parse error response if it's JSON
+        if (contentType?.includes("application/json")) {
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorData.error || errorMessage;
+          } catch {
+            // If JSON parse fails, use the status message
+          }
+        }
+
+        return {
+          success: false,
+          message: "Failed to fetch data",
+          error: errorMessage,
+        };
+      }
+
+      // Parse successful response
+      const data = await response.json();
+      return data as ApiResponse<T>;
     } catch (error) {
       return {
         success: false,
-        message: 'Failed to fetch data',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        message: "Failed to fetch data",
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -63,7 +87,7 @@ export class ApiClient {
   async post<T>(endpoint: string, data: unknown): Promise<ApiResponse<T>> {
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
-        method: 'POST',
+        method: "POST",
         headers: this.getHeaders(),
         body: JSON.stringify(data),
       });
@@ -72,8 +96,8 @@ export class ApiClient {
     } catch (error) {
       return {
         success: false,
-        message: 'Failed to post data',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        message: "Failed to post data",
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -81,7 +105,7 @@ export class ApiClient {
   async put<T>(endpoint: string, data: unknown): Promise<ApiResponse<T>> {
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: this.getHeaders(),
         body: JSON.stringify(data),
       });
@@ -90,8 +114,8 @@ export class ApiClient {
     } catch (error) {
       return {
         success: false,
-        message: 'Failed to update data',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        message: "Failed to update data",
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -99,7 +123,7 @@ export class ApiClient {
   async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
-        method: 'DELETE',
+        method: "DELETE",
         headers: this.getHeaders(),
       });
 
@@ -107,8 +131,8 @@ export class ApiClient {
     } catch (error) {
       return {
         success: false,
-        message: 'Failed to delete data',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        message: "Failed to delete data",
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -124,9 +148,9 @@ export class MLApiClient {
   async predict<T>(data: unknown): Promise<T> {
     try {
       const response = await fetch(`${this.baseUrl}/predict`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
       });
@@ -137,7 +161,7 @@ export class MLApiClient {
 
       return await response.json();
     } catch (error) {
-      console.error('ML prediction failed:', error);
+      console.error("ML prediction failed:", error);
       throw error;
     }
   }

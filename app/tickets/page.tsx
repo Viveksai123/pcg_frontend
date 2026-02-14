@@ -1,52 +1,85 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useAuth } from '@/lib/auth-context';
-import { apiClient } from '@/lib/api';
-import { API_ENDPOINTS } from '@/lib/config';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Ticket } from '@/lib/types';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useAuth } from "@/lib/auth-context";
+import { apiClient } from "@/lib/api";
+import { API_ENDPOINTS } from "@/lib/config";
+import { transformBackendTickets, transformBackendTicket } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Ticket } from "@/lib/types";
 
-type StatusFilter = 'all' | 'pending' | 'resolved';
-type PriorityFilter = 'all' | 'low' | 'medium' | 'high';
+type StatusFilter = "all" | "pending" | "resolved";
+type PriorityFilter = "all" | "low" | "medium" | "high";
 
 export default function TicketsPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [error, setError] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !user?.id) return;
 
     const fetchTickets = async () => {
       setIsLoading(true);
-      setError('');
+      setError("");
       try {
-        console.log('[Tickets] Fetching tickets from:', API_ENDPOINTS.TICKETS.GET_ALL);
-        const response = await apiClient.get<Ticket[]>(API_ENDPOINTS.TICKETS.GET_ALL);
-        
-        console.log('[Tickets] API Response:', response);
-        
+        // Construct endpoint using user ID
+        const endpoint = API_ENDPOINTS.TICKETS.GET_BY_USER.replace(
+          ":userId",
+          user.id,
+        );
+
+        console.log("[Tickets] Fetching tickets from:", endpoint);
+        const response = await apiClient.get<Ticket[]>(endpoint);
+
+        console.log("[Tickets] API Response:", response);
+
+        // Handle case where backend returns tickets wrapped in ApiResponse
         if (response.success && response.data) {
-          console.log('[Tickets] Loaded', response.data.length, 'tickets');
-          setTickets(response.data);
-        } else if (response.data && Array.isArray(response.data)) {
-          // Handle case where backend returns tickets directly in data
-          console.log('[Tickets] Loaded', response.data.length, 'tickets (direct data)');
-          setTickets(response.data);
+          console.log("[Tickets] Loaded", response.data.length, "tickets");
+          // Data is already in frontend format
+          const transformedTickets = transformBackendTickets(response.data);
+          setTickets(transformedTickets);
+        }
+        // Handle case where backend returns plain array
+        else if (Array.isArray(response)) {
+          console.log(
+            "[Tickets] Loaded",
+            response.length,
+            "tickets (direct array response)",
+          );
+          const transformedTickets = transformBackendTickets(response as any[]);
+          setTickets(transformedTickets);
+        }
+        // Handle case where data is directly in response object as array
+        else if (response && typeof response === "object") {
+          const dataValue = (response as any).data;
+          if (Array.isArray(dataValue)) {
+            console.log(
+              "[Tickets] Loaded",
+              dataValue.length,
+              "tickets (in data field)",
+            );
+            const transformedTickets = transformBackendTickets(dataValue);
+            setTickets(transformedTickets);
+          } else {
+            console.error("[Tickets] Response error:", (response as any).error);
+            setError((response as any).error || "Failed to load tickets");
+          }
         } else {
-          console.error('[Tickets] Response error:', response.error);
-          setError(response.error || 'Failed to load tickets');
+          console.error("[Tickets] Unexpected response format:", response);
+          setError("Failed to load tickets - unexpected response format");
         }
       } catch (err) {
-        const error = err instanceof Error ? err.message : 'Failed to load tickets';
-        console.error('[Tickets] Fetch error:', error);
+        const error =
+          err instanceof Error ? err.message : "Failed to load tickets";
+        console.error("[Tickets] Fetch error:", error);
         setError(error);
       } finally {
         setIsLoading(false);
@@ -54,45 +87,80 @@ export default function TicketsPage() {
     };
 
     fetchTickets();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.id]);
 
   if (!isAuthenticated) {
     return null;
   }
 
   // Filter and search tickets
-  const filteredTickets = tickets.filter((ticket) => {
-    const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
-    const matchesPriority = priorityFilter === 'all' || ticket.priority === priorityFilter;
-    const matchesSearch =
-      searchTerm === '' ||
-      ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ticket.description.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredTickets = tickets
+    .filter((ticket) => {
+      // Ensure status is properly normalized for comparison
+      const ticketStatus = ticket.status?.toLowerCase() || "pending";
+      const filterStatus = statusFilter?.toLowerCase() || "all";
 
-    return matchesStatus && matchesPriority && matchesSearch;
-  });
+      const matchesStatus =
+        filterStatus === "all" || ticketStatus === filterStatus;
+      const matchesPriority =
+        priorityFilter === "all" || ticket.priority === priorityFilter;
+      const matchesSearch =
+        searchTerm === "" ||
+        ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ticket.description.toLowerCase().includes(searchTerm.toLowerCase());
 
-  const pendingCount = tickets.filter((t) => t.status === 'pending').length;
-  const resolvedCount = tickets.filter((t) => t.status === 'resolved').length;
+      return matchesStatus && matchesPriority && matchesSearch;
+    })
+    .sort((a, b) => {
+      // Define priority order: high (0) > medium (1) > low (2)
+      const priorityOrder: { [key: string]: number } = {
+        high: 0,
+        medium: 1,
+        low: 2,
+      };
+
+      const priorityA = priorityOrder[a.priority?.toLowerCase() || "low"] ?? 2;
+      const priorityB = priorityOrder[b.priority?.toLowerCase() || "low"] ?? 2;
+
+      // If priorities are equal, sort by created date (newest first)
+      if (priorityA === priorityB) {
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      }
+
+      return priorityA - priorityB;
+    });
+
+  const pendingCount = tickets.filter(
+    (t) => t.status?.toLowerCase() === "pending",
+  ).length;
+  const resolvedCount = tickets.filter(
+    (t) => t.status?.toLowerCase() === "resolved",
+  ).length;
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high':
-        return 'bg-red-500 bg-opacity-10 border-red-500 text-red-400';
-      case 'medium':
-        return 'bg-yellow-500 bg-opacity-10 border-yellow-500 text-yellow-400';
-      case 'low':
-        return 'bg-green-500 bg-opacity-10 border-green-500 text-green-400';
+      case "high":
+        return "bg-red-500 bg-opacity-10 border-red-500 text-red-400";
+      case "medium":
+        return "bg-yellow-500 bg-opacity-10 border-yellow-500 text-yellow-400";
+      case "low":
+        return "bg-green-500 bg-opacity-10 border-green-500 text-green-400";
       default:
-        return 'bg-slate-500 bg-opacity-10 border-slate-500 text-slate-400';
+        return "bg-slate-500 bg-opacity-10 border-slate-500 text-slate-400";
     }
   };
 
   const getStatusIcon = (status: string) => {
-    if (status === 'resolved') {
+    if (status === "resolved") {
       return (
         <div className="w-6 h-6 bg-green-500 bg-opacity-20 rounded-full flex items-center justify-center">
-          <svg className="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+          <svg
+            className="w-4 h-4 text-green-400"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
             <path
               fillRule="evenodd"
               d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -104,7 +172,11 @@ export default function TicketsPage() {
     }
     return (
       <div className="w-6 h-6 bg-yellow-500 bg-opacity-20 rounded-full flex items-center justify-center">
-        <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+        <svg
+          className="w-4 h-4 text-yellow-400"
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
           <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm6 0a1 1 0 100-2 1 1 0 000 2z" />
         </svg>
       </div>
@@ -118,7 +190,9 @@ export default function TicketsPage() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
           <div>
             <h1 className="text-4xl font-bold text-white mb-2">Tickets</h1>
-            <p className="text-slate-400">Manage and track all your support tickets</p>
+            <p className="text-slate-400">
+              Manage and track all your support tickets
+            </p>
           </div>
           <Link href="/tickets/create">
             <Button className="bg-blue-600 hover:bg-blue-700 text-white font-medium">
@@ -147,7 +221,9 @@ export default function TicketsPage() {
         <Card className="bg-slate-800 border-slate-700 p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-200 mb-2">Search</label>
+              <label className="block text-sm font-medium text-slate-200 mb-2">
+                Search
+              </label>
               <input
                 type="text"
                 placeholder="Search tickets..."
@@ -157,10 +233,14 @@ export default function TicketsPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-200 mb-2">Status</label>
+              <label className="block text-sm font-medium text-slate-200 mb-2">
+                Status
+              </label>
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value as StatusFilter)
+                }
                 className="w-full bg-slate-700 border border-slate-600 text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600"
               >
                 <option value="all">All Status</option>
@@ -169,10 +249,14 @@ export default function TicketsPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-200 mb-2">Priority</label>
+              <label className="block text-sm font-medium text-slate-200 mb-2">
+                Priority
+              </label>
               <select
                 value={priorityFilter}
-                onChange={(e) => setPriorityFilter(e.target.value as PriorityFilter)}
+                onChange={(e) =>
+                  setPriorityFilter(e.target.value as PriorityFilter)
+                }
                 className="w-full bg-slate-700 border border-slate-600 text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600"
               >
                 <option value="all">All Priorities</option>
@@ -184,9 +268,9 @@ export default function TicketsPage() {
             <div className="flex items-end">
               <Button
                 onClick={() => {
-                  setStatusFilter('all');
-                  setPriorityFilter('all');
-                  setSearchTerm('');
+                  setStatusFilter("all");
+                  setPriorityFilter("all");
+                  setSearchTerm("");
                 }}
                 className="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium"
               >
@@ -223,9 +307,13 @@ export default function TicketsPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           {getStatusIcon(ticket.status)}
-                          <h3 className="text-lg font-semibold text-white">{ticket.title}</h3>
+                          <h3 className="text-lg font-semibold text-white">
+                            {ticket.title}
+                          </h3>
                         </div>
-                        <p className="text-slate-400 text-sm mb-3 line-clamp-2">{ticket.description}</p>
+                        <p className="text-slate-400 text-sm mb-3 line-clamp-2">
+                          {ticket.description}
+                        </p>
                         <div className="flex flex-wrap gap-2 items-center">
                           <span className="text-xs bg-blue-500 bg-opacity-20 text-blue-300 px-3 py-1 rounded-full">
                             {ticket.category}
@@ -233,11 +321,14 @@ export default function TicketsPage() {
                           <span
                             className={`text-xs px-3 py-1 rounded-full border ${getPriorityColor(ticket.priority)}`}
                           >
-                            {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)} Priority
+                            {ticket.priority.charAt(0).toUpperCase() +
+                              ticket.priority.slice(1)}{" "}
+                            Priority
                           </span>
                           {ticket.categoryConfidence > 0 && (
                             <span className="text-xs text-slate-400">
-                              Confidence: {(ticket.categoryConfidence * 100).toFixed(1)}%
+                              Confidence:{" "}
+                              {(ticket.categoryConfidence * 100).toFixed(1)}%
                             </span>
                           )}
                         </div>

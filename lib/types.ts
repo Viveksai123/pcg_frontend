@@ -12,7 +12,7 @@ export interface HistoricalTicket {
   ticket_id: string;
   title: string;
   description: string;
-  status: 'Resolved' | 'Open' | 'Pending';
+  status: "Resolved" | "Open" | "Pending";
   resolution: string;
 }
 
@@ -113,21 +113,23 @@ export interface Ticket {
   id: string;
   title: string;
   description: string;
-  status: 'pending' | 'resolved';
-  priority: 'low' | 'medium' | 'high';
+  status: "pending" | "resolved";
+  closed?: boolean; // True if status is 'pending' or 'resolved'
+  priority: "low" | "medium" | "high";
   category: string;
   categoryConfidence: number;
   assignee?: string;
-  createdBy: string;
+  createdBy?: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
   mlPrediction?: MLPredictionResult;
   user?: string;
+  email?: string;
+  ticket_id?: string;
   historical_tickets?: HistoricalTicket[];
   knowledge_base?: KnowledgeBaseArticle[];
   ml_classification?: MLClassification;
   resolver_group?: string;
-  email?: string;
 }
 
 export interface MLPredictionResult {
@@ -148,7 +150,7 @@ export interface Notification {
   userId: string;
   title: string;
   message: string;
-  type: 'ticket_created' | 'ticket_updated' | 'ticket_resolved';
+  type: "ticket_created" | "ticket_updated" | "ticket_resolved";
   ticketId?: string;
   read: boolean;
   createdAt: string;
@@ -184,5 +186,5 @@ export interface GoogleLoginPayload {
 export interface CreateTicketPayload {
   title: string;
   description: string;
-  priority: 'low' | 'medium' | 'high';
+  priority: "low" | "medium" | "high";
 }

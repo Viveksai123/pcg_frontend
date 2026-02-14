@@ -1,21 +1,69 @@
-'use client';
+"use client";
 
-import { useAuth } from '@/lib/auth-context';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { apiClient } from "@/lib/api";
+import { API_ENDPOINTS } from "@/lib/config";
+import { transformBackendTickets } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Ticket } from "@/lib/types";
 
 export default function DashboardPage() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const router = useRouter();
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(true);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push('/login');
+      router.push("/login");
     }
   }, [isAuthenticated, isLoading, router]);
+
+  // Fetch user's tickets
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+
+    const fetchTickets = async () => {
+      setTicketsLoading(true);
+      try {
+        const endpoint = API_ENDPOINTS.TICKETS.GET_BY_USER.replace(
+          ":userId",
+          user.id,
+        );
+
+        const response = await apiClient.get<Ticket[]>(endpoint);
+
+        // Handle case where backend returns tickets wrapped in ApiResponse
+        if (response.success && response.data) {
+          const transformedTickets = transformBackendTickets(response.data);
+          setTickets(transformedTickets);
+        }
+        // Handle case where backend returns plain array
+        else if (Array.isArray(response)) {
+          const transformedTickets = transformBackendTickets(response as any[]);
+          setTickets(transformedTickets);
+        }
+        // Handle case where data is directly in response object as array
+        else if (response && typeof response === "object") {
+          const dataValue = (response as any).data;
+          if (Array.isArray(dataValue)) {
+            const transformedTickets = transformBackendTickets(dataValue);
+            setTickets(transformedTickets);
+          }
+        }
+      } catch (err) {
+        console.error("[Dashboard] Fetch error:", err);
+      } finally {
+        setTicketsLoading(false);
+      }
+    };
+
+    fetchTickets();
+  }, [isAuthenticated, user?.id]);
 
   if (isLoading) {
     return (
@@ -31,13 +79,22 @@ export default function DashboardPage() {
     return null;
   }
 
+  // Calculate stats
+  const totalTickets = tickets.length;
+  const pendingCount = tickets.filter(
+    (t) => t.status?.toLowerCase() === "pending",
+  ).length;
+  const resolvedCount = tickets.filter(
+    (t) => t.status?.toLowerCase() === "resolved",
+  ).length;
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Welcome Section */}
         <div className="mb-12">
           <h1 className="text-4xl font-bold text-white mb-2">
-            Welcome back, {user?.name.split(' ')[0]}!
+            Welcome back, {user?.name.split(" ")[0]}!
           </h1>
           <p className="text-slate-400 text-lg">
             Manage your tickets and track issues efficiently
@@ -50,7 +107,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-400 text-sm mb-1">Total Tickets</p>
-                <p className="text-3xl font-bold text-white">0</p>
+                <p className="text-3xl font-bold text-white">{totalTickets}</p>
               </div>
               <div className="w-12 h-12 bg-blue-600 bg-opacity-20 rounded-lg flex items-center justify-center">
                 <svg
@@ -74,7 +131,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-400 text-sm mb-1">Pending</p>
-                <p className="text-3xl font-bold text-white">0</p>
+                <p className="text-3xl font-bold text-white">{pendingCount}</p>
               </div>
               <div className="w-12 h-12 bg-yellow-600 bg-opacity-20 rounded-lg flex items-center justify-center">
                 <svg
@@ -98,7 +155,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-400 text-sm mb-1">Resolved</p>
-                <p className="text-3xl font-bold text-white">0</p>
+                <p className="text-3xl font-bold text-white">{resolvedCount}</p>
               </div>
               <div className="w-12 h-12 bg-green-600 bg-opacity-20 rounded-lg flex items-center justify-center">
                 <svg
@@ -138,7 +195,9 @@ export default function DashboardPage() {
                   />
                 </svg>
               </div>
-              <h3 className="text-2xl font-bold text-white mb-2">Create New Ticket</h3>
+              <h3 className="text-2xl font-bold text-white mb-2">
+                Create New Ticket
+              </h3>
               <p className="text-blue-200 mb-6">
                 Report an issue and let our AI categorize it automatically
               </p>
@@ -167,7 +226,9 @@ export default function DashboardPage() {
                   />
                 </svg>
               </div>
-              <h3 className="text-2xl font-bold text-white mb-2">View All Tickets</h3>
+              <h3 className="text-2xl font-bold text-white mb-2">
+                View All Tickets
+              </h3>
               <p className="text-slate-300 mb-6">
                 Browse, filter, and manage all your support tickets
               </p>
