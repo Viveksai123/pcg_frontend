@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { useTokenRestoration } from '@/hooks/use-token-restoration';
 import { apiClient } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,6 +10,7 @@ import { Notification } from '@/lib/types';
 
 export default function NotificationsPage() {
   const { isAuthenticated } = useAuth();
+  useTokenRestoration();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -21,8 +23,16 @@ export default function NotificationsPage() {
       setIsLoading(true);
       setError('');
       try {
-        // Simulating API call for notifications
-        // In real app, this would fetch from backend
+        // Ensure token is set before any API call
+        const token = localStorage.getItem('authToken');
+        if (token) {
+          apiClient.setToken(token);
+        }
+
+        // For now, using mock notifications
+        // TODO: Replace with actual API call when backend endpoint is ready
+        console.log('[Notifications] Loading notifications...');
+        
         const mockNotifications: Notification[] = [
           {
             id: '1',
@@ -65,9 +75,13 @@ export default function NotificationsPage() {
             createdAt: new Date(Date.now() - 172800000).toISOString(),
           },
         ];
+        
+        console.log('[Notifications] Loaded', mockNotifications.length, 'notifications');
         setNotifications(mockNotifications);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load notifications');
+        const error = err instanceof Error ? err.message : 'Failed to load notifications';
+        console.error('[Notifications] Fetch error:', error);
+        setError(error);
       } finally {
         setIsLoading(false);
       }

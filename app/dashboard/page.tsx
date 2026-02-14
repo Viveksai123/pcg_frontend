@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth-context";
+import { useTokenRestoration } from "@/hooks/use-token-restoration";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -13,6 +14,7 @@ import { Ticket } from "@/lib/types";
 
 export default function DashboardPage() {
   const { isAuthenticated, isLoading, user } = useAuth();
+  useTokenRestoration();
   const router = useRouter();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(true);

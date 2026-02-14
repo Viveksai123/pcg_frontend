@@ -3,16 +3,18 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { useTokenRestoration } from '@/hooks/use-token-restoration';
 import { apiClient, mlApiClient } from '@/lib/api';
 import { API_ENDPOINTS } from '@/lib/config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { MLPredictResponse, HistoricalTicket, KnowledgeBaseArticle } from '@/lib/types';
+import { MLPredictResponse, HistoricalTicket, KnowledgeBaseArticle, Ticket } from '@/lib/types';
 
 export default function CreateTicketPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
+  useTokenRestoration();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [mlResult, setMlResult] = useState<MLPredictResponse | null>(null);
@@ -56,13 +58,13 @@ export default function CreateTicketPage() {
 
       console.log('[Ticket] Calling ML API with payload:', mlPayload);
       
-      const result = await mlApiClient.predict(mlPayload);
+      const result = await mlApiClient.predict<MLPredictResponse>(mlPayload);
       
       console.log('[Ticket] ML API response:', result);
       
       // Handle the actual ML response format
       if (result.ticket_id && result.predictions) {
-        setMlResult(result as MLPredictResponse);
+        setMlResult(result);
       } else {
         setError('Unexpected ML response format');
       }
@@ -96,15 +98,15 @@ export default function CreateTicketPage() {
 
       console.log('[Ticket] Creating ticket with payload:', payload);
       
-      const response = await apiClient.post(API_ENDPOINTS.TICKETS.CREATE, payload);
+      const response = await apiClient.post<Ticket>(API_ENDPOINTS.TICKETS.CREATE, payload);
 
       console.log('[Ticket] Create response:', response);
 
       // Check multiple success indicators
-      if (response.success || response.data?.ticket_id || response.ticket_id) {
+      if (response.success || response.data?.ticket_id || response.data?.id) {
         console.log('[Ticket] Ticket created successfully!');
         // Show success toast/message (if you have toast notifications)
-        alert(`✅ Ticket created successfully!\nTicket ID: ${response.data?.ticket_id || response.ticket_id || 'CREATED'}`);
+        alert(`✅ Ticket created successfully!\nTicket ID: ${response.data?.ticket_id || response.data?.id || 'CREATED'}`);
         router.push('/');
       } else {
         setError(response.error || 'Failed to create ticket');

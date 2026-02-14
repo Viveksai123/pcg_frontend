@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { useTokenRestoration } from '@/hooks/use-token-restoration';
 import { apiClient } from '@/lib/api';
 import { API_ENDPOINTS } from '@/lib/config';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ export default function TicketDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { isAuthenticated } = useAuth();
+  useTokenRestoration();
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -27,16 +29,37 @@ export default function TicketDetailPage() {
       setIsLoading(true);
       setError('');
       try {
+        // Ensure token is set before API call
+        const token = localStorage.getItem('authToken');
+        if (token) {
+          apiClient.setToken(token);
+        }
+
         const endpoint = API_ENDPOINTS.TICKETS.GET_BY_ID.replace(':id', ticketId);
+        console.log('[TicketDetail] Fetching ticket from:', endpoint);
         const response = await apiClient.get<Ticket>(endpoint);
 
+        console.log('[TicketDetail] API Response:', response);
+
         if (response.success && response.data) {
+          console.log('[TicketDetail] Ticket loaded:', response.data);
           setTicket(response.data);
+        } else if (response && typeof response === 'object' && 'title' in response) {
+          // Handle case where backend returns ticket directly
+          console.log('[TicketDetail] Ticket loaded (direct format)');
+          setTicket(response as Ticket);
+        } else if (response && typeof response === 'object' && (response as any).data && 'title' in (response as any).data) {
+          // Handle case where ticket is in data field
+          console.log('[TicketDetail] Ticket loaded (in data field)');
+          setTicket((response as any).data as Ticket);
         } else {
-          setError(response.error || 'Failed to load ticket');
+          console.error('[TicketDetail] Response error:', (response as any).error);
+          setError((response as any).error || 'Failed to load ticket');
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load ticket');
+        const error = err instanceof Error ? err.message : 'Failed to load ticket';
+        console.error('[TicketDetail] Fetch error:', error);
+        setError(error);
       } finally {
         setIsLoading(false);
       }
@@ -54,16 +77,29 @@ export default function TicketDetailPage() {
 
     setUpdatingStatus(true);
     try {
+      // Ensure token is set before API call
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        apiClient.setToken(token);
+      }
+
       const endpoint = API_ENDPOINTS.TICKETS.UPDATE.replace(':id', ticket.id);
+      console.log('[TicketDetail] Updating ticket status to:', newStatus);
       const response = await apiClient.put(endpoint, { status: newStatus });
 
-      if (response.success) {
+      console.log('[TicketDetail] Update response:', response);
+
+      if (response.success || response.data) {
+        console.log('[TicketDetail] Status updated successfully');
         setTicket({ ...ticket, status: newStatus });
       } else {
-        setError(response.error || 'Failed to update ticket');
+        console.error('[TicketDetail] Update error:', (response as any).error);
+        setError((response as any).error || 'Failed to update ticket');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update ticket');
+      const error = err instanceof Error ? err.message : 'Failed to update ticket';
+      console.error('[TicketDetail] Update error:', error);
+      setError(error);
     } finally {
       setUpdatingStatus(false);
     }

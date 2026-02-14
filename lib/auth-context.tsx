@@ -26,20 +26,55 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Check if user is logged in on mount
   useEffect(() => {
     const checkAuth = async () => {
+      console.log('[Auth] Checking auth on mount...');
       const token = localStorage.getItem('authToken');
+      const cachedUser = localStorage.getItem('user');
+      
       if (token) {
+        console.log('[Auth] Token found in localStorage, restoring...');
         apiClient.setToken(token);
+        
+        // If cached user exists, use it immediately
+        if (cachedUser) {
+          try {
+            const parsedUser = JSON.parse(cachedUser);
+            console.log('[Auth] Restored user from cache:', parsedUser);
+            setUser(parsedUser);
+          } catch (e) {
+            console.warn('[Auth] Failed to parse cached user');
+          }
+        }
+        
+        // Always verify token with backend profile
         try {
           const response = await apiClient.get<User>(API_ENDPOINTS.AUTH.PROFILE);
+          console.log('[Auth] Profile response:', response);
+          
           if (response.success && response.data) {
+            console.log('[Auth] Profile verified, setting user:', response.data);
             setUser(response.data);
+            localStorage.setItem('user', JSON.stringify(response.data));
+          } else if (response.data && typeof response.data === 'object' && 'email' in response.data) {
+            // Handle raw format
+            console.log('[Auth] Profile returned in raw format');
+            const userData = response.data as User;
+            setUser(userData);
+            localStorage.setItem('user', JSON.stringify(userData));
           } else {
+            console.warn('[Auth] Invalid profile response, clearing auth');
             localStorage.removeItem('authToken');
+            localStorage.removeItem('user');
+            apiClient.clearToken();
           }
         } catch (err) {
-          console.error('Auth check failed:', err);
+          console.error('[Auth] Profile verification failed:', err);
           localStorage.removeItem('authToken');
+          localStorage.removeItem('user');
+          apiClient.clearToken();
         }
+      } else {
+        console.log('[Auth] No token found');
+        localStorage.removeItem('user');
       }
       setIsLoading(false);
     };
@@ -57,7 +92,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       );
 
       if (response.success && response.data) {
+        console.log('[Auth] Login successful');
         apiClient.setToken(response.data.token);
+        // Persist both token and user
+        localStorage.setItem('authToken', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
         setUser(response.data.user);
       } else {
         setError(response.error || 'Login failed');
@@ -82,7 +121,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       );
 
       if (response.success && response.data) {
+        console.log('[Auth] Signup successful');
         apiClient.setToken(response.data.token);
+        // Persist both token and user
+        localStorage.setItem('authToken', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
         setUser(response.data.user);
       } else {
         setError(response.error || 'Signup failed');
@@ -179,6 +222,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (token && user) {
         console.log('[Auth] Response successful, setting user:', user);
         apiClient.setToken(token);
+        // Store both token and user in localStorage
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('user', JSON.stringify(user));
         setUser(user);
       } else {
         throw new Error('Missing token or user data');
@@ -199,7 +245,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       await apiClient.post(API_ENDPOINTS.AUTH.LOGOUT, {});
       apiClient.clearToken();
       setUser(null);
+      // Clear both token and user from localStorage
       localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+      console.log('[Auth] Logged out successfully');
     } catch (err) {
       console.error('Logout failed:', err);
     } finally {
