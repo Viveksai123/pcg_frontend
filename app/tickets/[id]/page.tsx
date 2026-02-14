@@ -72,36 +72,36 @@ export default function TicketDetailPage() {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'high':
-        return 'bg-red-500 text-red-200';
+        return 'bg-red-100 text-red-700';
       case 'medium':
-        return 'bg-yellow-500 text-yellow-200';
+        return 'bg-yellow-100 text-yellow-700';
       case 'low':
-        return 'bg-green-500 text-green-200';
+        return 'bg-green-100 text-green-700';
       default:
-        return 'bg-slate-500 text-slate-200';
+        return 'bg-orange-100 text-orange-700';
     }
   };
 
   const getPriorityBgColor = (priority: string) => {
     switch (priority) {
       case 'high':
-        return 'bg-red-500 bg-opacity-10 border-red-500';
+        return 'bg-red-50 border-red-300';
       case 'medium':
-        return 'bg-yellow-500 bg-opacity-10 border-yellow-500';
+        return 'bg-yellow-50 border-yellow-300';
       case 'low':
-        return 'bg-green-500 bg-opacity-10 border-green-500';
+        return 'bg-green-50 border-green-300';
       default:
-        return 'bg-slate-500 bg-opacity-10 border-slate-500';
+        return 'bg-orange-50 border-orange-300';
     }
   };
 
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <main className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex justify-center py-12">
             <div className="animate-spin">
-              <div className="w-12 h-12 border-4 border-slate-700 border-t-blue-600 rounded-full" />
+              <div className="w-12 h-12 border-4 border-orange-200 border-t-amber-600 rounded-full" />
             </div>
           </div>
         </div>
@@ -111,13 +111,13 @@ export default function TicketDetailPage() {
 
   if (!ticket) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <main className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <Card className="bg-slate-800 border-slate-700 p-8 text-center">
-            <p className="text-slate-400 text-lg mb-4">Ticket not found</p>
+          <Card className="bg-white border-orange-200 p-8 text-center shadow-lg">
+            <p className="text-amber-700 text-lg mb-4">Ticket not found</p>
             <Button
               onClick={() => router.push('/tickets')}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+              className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-medium"
             >
               Back to Tickets
             </Button>
@@ -128,22 +128,22 @@ export default function TicketDetailPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <main className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="mb-8">
           <Button
             onClick={() => router.push('/tickets')}
-            className="mb-4 bg-slate-700 hover:bg-slate-600 text-slate-200"
+            className="mb-4 bg-amber-100 hover:bg-amber-200 text-amber-800 border border-orange-300"
           >
             ← Back to Tickets
           </Button>
-          <h1 className="text-4xl font-bold text-white">{ticket.title}</h1>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-amber-800 to-orange-700 bg-clip-text text-transparent">{ticket.title}</h1>
         </div>
 
         {error && (
-          <Card className="bg-red-500 bg-opacity-10 border border-red-500 p-4 mb-8">
-            <p className="text-red-400">{error}</p>
+          <Card className="bg-red-50 border border-red-300 p-4 mb-8">
+            <p className="text-red-700">{error}</p>
           </Card>
         )}
 

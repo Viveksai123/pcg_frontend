@@ -7,14 +7,14 @@ import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { GoogleLogin } from '@/components/auth/google-login';
+import { Shield, AlertCircle } from 'lucide-react';
 
-export default function LoginPage() {
+export default function AdminLoginPage() {
   const router = useRouter();
-  const { login, isLoading, error } = useAuth();
+  const { login, isLoading } = useAuth();
   const [formError, setFormError] = useState<string>('');
   const [formData, setFormData] = useState({
-    email: '',
+    email: 'admin@gmail.com',
     password: '',
   });
 
@@ -36,23 +36,23 @@ export default function LoginPage() {
     }
 
     try {
+      console.log('[Admin Login] Attempting login...');
       await login(formData.email, formData.password);
       
-      // Check if this is an admin user
-      const isAdmin = formData.email === 'admin@gmail.com';
+      // Check if token was stored
+      const token = localStorage.getItem('authToken');
+      console.log('[Admin Login] Token stored:', !!token);
       
-      // Check if there's a redirect URL in query params
-      const params = new URLSearchParams(window.location.search);
-      const redirect = params.get('redirect');
-      
-      // Redirect admin users to admin dashboard, others to regular dashboard
-      if (isAdmin) {
+      if (token) {
+        console.log('[Admin Login] Login successful, redirecting to admin dashboard');
         router.push('/admin');
       } else {
-        router.push(redirect || '/dashboard');
+        throw new Error('Authentication token not received');
       }
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Login failed');
+      const errorMessage = err instanceof Error ? err.message : 'Login failed';
+      console.error('[Admin Login] Error:', errorMessage);
+      setFormError(errorMessage);
     }
   };
 
@@ -60,10 +60,15 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 px-4">
       <Card className="w-full max-w-md p-8 border-orange-200 bg-white shadow-xl">
         <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <div className="p-4 bg-gradient-to-br from-amber-100 to-orange-100 rounded-full">
+              <Shield size={48} className="text-amber-600" />
+            </div>
+          </div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-800 to-orange-700 bg-clip-text text-transparent mb-2">
-            Welcome Back
+            Admin Portal
           </h1>
-          <p className="text-amber-700">Sign in to your ticket management account</p>
+          <p className="text-amber-700">Sign in to access the admin dashboard</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 mb-6">
@@ -75,7 +80,7 @@ export default function LoginPage() {
               id="email"
               name="email"
               type="email"
-              placeholder="you@example.com"
+              placeholder="admin@example.com"
               value={formData.email}
               onChange={handleChange}
               disabled={isLoading}
@@ -99,9 +104,13 @@ export default function LoginPage() {
             />
           </div>
 
-          {(formError || error) && (
-            <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-lg">
-              {formError || error}
+          {formError && (
+            <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-lg flex items-start gap-2">
+              <AlertCircle size={20} className="shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium">Login Failed</p>
+                <p className="text-sm">{formError}</p>
+              </div>
             </div>
           )}
 
@@ -110,34 +119,22 @@ export default function LoginPage() {
             disabled={isLoading}
             className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-medium py-2 shadow-md"
           >
-            {isLoading ? 'Signing in...' : 'Sign In'}
+            {isLoading ? 'Signing in...' : 'Sign In to Admin Portal'}
           </Button>
         </form>
 
-        <div className="relative mb-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-orange-200"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-amber-700">Or continue with</span>
-          </div>
+        <div className="border-t border-orange-200 pt-4">
+          <p className="text-center text-amber-700 text-sm">
+            <Link href="/login" className="text-amber-600 hover:text-amber-800 font-medium">
+              ← Back to regular login
+            </Link>
+          </p>
         </div>
 
-        <GoogleLogin onSuccess={handleChange} />
-
-        <p className="text-center text-amber-700 text-sm mt-6">
-          Don't have an account?{' '}
-          <Link href="/signup" className="text-amber-600 hover:text-amber-800 font-medium">
-            Sign up
-          </Link>
-        </p>
-
-        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-center">
-          <p className="text-xs text-blue-800">
-            <strong>Admin Access:</strong>{' '}
-            <Link href="/admin/login" className="text-blue-600 hover:text-blue-800 font-medium underline">
-              Go to Admin Login
-            </Link>
+        <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-xs text-amber-800">
+            <strong>Admin Credentials:</strong> Use <code className="bg-amber-100 px-1 rounded">admin@gmail.com</code> 
+            with password <code className="bg-amber-100 px-1 rounded">admin123</code>
           </p>
         </div>
       </Card>

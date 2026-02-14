@@ -51,21 +51,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     setError(null);
     try {
+      console.log('[Auth] Attempting login with email:', email);
+      console.log('[Auth] Sending POST to:', `${API_BASE_URL}${API_ENDPOINTS.AUTH.LOGIN}`);
+      
       const response = await apiClient.post<AuthResponse>(
         API_ENDPOINTS.AUTH.LOGIN,
         { email, password }
       );
 
+      console.log('[Auth] Login response:', response);
+
       if (response.success && response.data) {
-        apiClient.setToken(response.data.token);
-        setUser(response.data.user);
+        const token = response.data.token;
+        const user = response.data.user;
+        
+        // Store token in both apiClient and localStorage
+        apiClient.setToken(token);
+        localStorage.setItem('authToken', token);
+        
+        // Set user state
+        setUser(user);
+        
+        console.log('[Auth] Login successful, token stored:', token.substring(0, 20) + '...');
       } else {
-        setError(response.error || 'Login failed');
-        throw new Error(response.error || 'Login failed');
+        const errorMsg = response.error || response.message || 'Login failed';
+        console.error('[Auth] Login failed - response:', response);
+        setError(errorMsg);
+        throw new Error(errorMsg);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed';
       setError(errorMessage);
+      console.error('[Auth] Login exception:', err);
       throw err;
     } finally {
       setIsLoading(false);
@@ -78,7 +95,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const response = await apiClient.post<AuthResponse>(
         API_ENDPOINTS.AUTH.SIGNUP,
-        { email, password, name }
+        { email, password, firstName: name }
       );
 
       if (response.success && response.data) {

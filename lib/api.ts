@@ -62,14 +62,32 @@ export class ApiClient {
 
   async post<T>(endpoint: string, data: unknown): Promise<ApiResponse<T>> {
     try {
+      console.log('[API] POST request to:', `${this.baseUrl}${endpoint}`);
+      console.log('[API] Request data:', data);
+      
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify(data),
       });
 
-      return await response.json();
+      console.log('[API] Response status:', response.status, response.statusText);
+      
+      const responseData = await response.json();
+      console.log('[API] Response data:', responseData);
+
+      // If response is not ok but we got JSON, return it with error info
+      if (!response.ok) {
+        return {
+          success: false,
+          message: responseData.message || responseData.error || 'Request failed',
+          error: responseData.message || responseData.error || `HTTP ${response.status}: ${response.statusText}`,
+        };
+      }
+
+      return responseData;
     } catch (error) {
+      console.error('[API] Request failed:', error);
       return {
         success: false,
         message: 'Failed to post data',

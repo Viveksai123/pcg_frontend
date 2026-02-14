@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,12 +14,18 @@ import {
 
 export const Navbar = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, logout, isAuthenticated } = useAuth();
 
   const handleLogout = async () => {
     await logout();
     router.push('/login');
   };
+
+  // Hide navbar on admin pages
+  if (pathname?.startsWith('/admin')) {
+    return null;
+  }
 
   if (!isAuthenticated) {
     return null;
