@@ -92,7 +92,32 @@ export class ApiClient {
         body: JSON.stringify(data),
       });
 
-      return await response.json();
+      if (!response.ok) {
+        const contentType = response.headers.get("content-type");
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+
+        if (contentType?.includes("application/json")) {
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorData.error || errorMessage;
+          } catch {
+            // If JSON parse fails, use the status message
+          }
+        }
+
+        return {
+          success: false,
+          message: "Failed to post data",
+          error: errorMessage,
+        };
+      }
+
+      const result = await response.json();
+      // Ensure success is set to true for 2xx responses
+      return {
+        ...result,
+        success: result.success !== false,
+      };
     } catch (error) {
       return {
         success: false,
@@ -110,7 +135,32 @@ export class ApiClient {
         body: JSON.stringify(data),
       });
 
-      return await response.json();
+      if (!response.ok) {
+        const contentType = response.headers.get("content-type");
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+
+        if (contentType?.includes("application/json")) {
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorData.error || errorMessage;
+          } catch {
+            // If JSON parse fails, use the status message
+          }
+        }
+
+        return {
+          success: false,
+          message: "Failed to update data",
+          error: errorMessage,
+        };
+      }
+
+      const result = await response.json();
+      // Ensure success is set to true for 2xx responses
+      return {
+        ...result,
+        success: result.success !== false,
+      };
     } catch (error) {
       return {
         success: false,

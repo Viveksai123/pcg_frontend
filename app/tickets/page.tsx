@@ -32,13 +32,17 @@ export default function TicketsPage() {
       setError("");
       try {
         // Ensure token is set before API call
-        const token = localStorage.getItem('authToken');
+        const token = localStorage.getItem("authToken");
         if (token) {
           apiClient.setToken(token);
         }
 
-        console.log("[Tickets] Fetching tickets from:", API_ENDPOINTS.TICKETS.GET_ALL);
-        const response = await apiClient.get<Ticket[]>(API_ENDPOINTS.TICKETS.GET_ALL);
+        const endpoint = API_ENDPOINTS.TICKETS.GET_BY_USER.replace(
+          ":userId",
+          user.id,
+        );
+        console.log("[Tickets] Fetching user tickets from:", endpoint);
+        const response = await apiClient.get<Ticket[]>(endpoint);
 
         console.log("[Tickets] API Response:", response);
 
@@ -60,9 +64,19 @@ export default function TicketsPage() {
           setTickets(transformedTickets);
         }
         // Handle case where data is directly in response object as array
-        else if (response && typeof response === "object" && Array.isArray((response as any).data)) {
-          console.log("[Tickets] Loaded", (response as any).data.length, "tickets (response.data)");
-          const transformedTickets = transformBackendTickets((response as any).data);
+        else if (
+          response &&
+          typeof response === "object" &&
+          Array.isArray((response as any).data)
+        ) {
+          console.log(
+            "[Tickets] Loaded",
+            (response as any).data.length,
+            "tickets (response.data)",
+          );
+          const transformedTickets = transformBackendTickets(
+            (response as any).data,
+          );
           setTickets(transformedTickets);
         } else {
           console.warn("[Tickets] Unexpected response format:", response);
