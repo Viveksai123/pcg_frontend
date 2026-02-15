@@ -47,7 +47,10 @@ export default function TicketDetailPage() {
         } else if (response && typeof response === 'object' && 'title' in response) {
           // Handle case where backend returns ticket directly
           console.log('[TicketDetail] Ticket loaded (direct format)');
-          setTicket(response as Ticket);
+          if ('data' in response) {
+  setTicket(response.data as Ticket);
+}
+
         } else if (response && typeof response === 'object' && (response as any).data && 'title' in (response as any).data) {
           // Handle case where ticket is in data field
           console.log('[TicketDetail] Ticket loaded (in data field)');
@@ -351,7 +354,10 @@ export default function TicketDetailPage() {
                 <div>
                   <p className="text-slate-400">Last Updated</p>
                   <p className="text-slate-200">
-                    {new Date(ticket.updatedAt).toLocaleDateString()}
+                    {ticket.updatedAt && 
+  new Date(ticket.updatedAt).toLocaleDateString()
+}
+
                   </p>
                 </div>
               </div>
